@@ -1,6 +1,8 @@
-# TODO docstring
+'''REINFORCE/actor-critic with(out) bootstrapping and/or baseline subtraction.
+Optional flags: --bootstrapping or --baselinesubtraction.'''
 
 # Imports
+import sys
 import tensorflow as tf
 from keras import Model
 from keras.models import Sequential, clone_model
@@ -10,6 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 from catch import Catch
+from helper import LearningCurvePlot, tf_control_memorygrowth
 
 # Entropy function
 h = lambda P: -tf.tensordot(P, tf.math.log(P), 1)
@@ -113,7 +116,8 @@ def policy_based_learning(env, agent, budget, n_episodes):
       total_reward = np.sum(rewards)
       epoch_reward += total_reward
       traces.append([states, actions, rewards])
-    print("Epoch", epoch, "avg reward:", epoch_reward/n_episodes)
+    if __name__ == '__main__':
+      print("Epoch", epoch, "avg reward:", epoch_reward/n_episodes)
     policy_loss, value_loss = agent.update_model(traces) # Update the model using the generated traces
     actor_history.append(policy_loss)
     critic_history.append(value_loss)
@@ -123,22 +127,10 @@ def policy_based_learning(env, agent, budget, n_episodes):
 
 if __name__ == '__main__':
 
-    # From https://www.tensorflow.org/guide/gpu 
-    # (sometimes needed to prevent OOM on dslab servers)
-    tf.keras.backend.clear_session()
-    gpus = tf.config.list_physical_devices('GPU')
-    if gpus:
-      try:
-        # Currently, memory growth needs to be the same across GPUs
-        for gpu in gpus:
-          tf.config.experimental.set_memory_growth(gpu, True)
-          logical_gpus = tf.config.list_logical_devices('GPU')
-          print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
-      except RuntimeError as e:
-          # Memory growth must be set before GPUs have been initialized
-          print(e)
+    tf_control_memorygrowth() # For DSLab servers
 
-    # Environment parameters
+    # (DEFAULT) HYPERPARAMETERS
+    # Environment
     rows = 7
     columns = 7
     speed = 1.0
@@ -146,33 +138,40 @@ if __name__ == '__main__':
     max_misses = 10
     observation_type = 'pixel' # 'vector'
     seed = None
-
-    # Agent hyperparameters
+    # Agent
     budget = 1000
     n_episodes = 5
+    n_actions = 3
+    learning_rate = 0.005
+    gamma = 0.95
+    eta = 1
+    n_step = max_steps + 1 # default = no bootstrapping
+    baseline_subraction = False
+
+    for arg in sys.argv:
+      if arg == '--bootstrapping':
+        print("Bootstrapping on.")
+        n_step = 5
+      if arg == '--baselinesubtraction':
+        print("Baseline subtraction on.")
+        baseline_subraction = True
 
     # Initialize environment and Q-array
     env = Catch(rows=rows, columns=columns, speed=speed, max_steps=max_steps,
                 max_misses=max_misses, observation_type=observation_type, seed=seed)
     s = env.reset()
-    agent = PolicyBasedAgent(input_shape=s.shape, n_actions=3, learning_rate=0.005, gamma=0.95, eta=1, n_step=5, baseline_subtraction=True)
+    agent = PolicyBasedAgent(s.shape, n_actions, learning_rate, gamma, eta, n_step, baseline_subtraction=True)
 
     rewards, actor_history, critic_history = policy_based_learning(env, agent, budget, n_episodes)
-    plt.plot(rewards)
-    plt.xlabel('Epochs')
-    plt.ylabel('Average rewards')
-    plt.title('Policy based learning')
-    plt.savefig('rewards.png')
-    plt.clf()
-    plt.plot(actor_history)
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.title('Policy based learning')
-    plt.savefig('actor_history.png')
-    plt.clf()
-    plt.plot(critic_history)
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.title('Policy based learning')
-    plt.savefig('critic_history.png')
-
+    
+    # Save results
+    fig = LearningCurvePlot('Policy based learning', 'Epochs', 'Rewards (avg)')
+    # TODO smoothing?
+    fig.add_curve(rewards)
+    fig.save('rewards.png')
+    fig = LearningCurvePlot('Actor history', 'Epochs', 'Loss')
+    fig.add_curve(actor_history)
+    fig.save('actor_history.png')
+    fig = LearningCurvePlot('Critic history', 'Epochs', 'Loss')
+    fig.add_curve(critic_history)
+    fig.save('critic_history.png')
