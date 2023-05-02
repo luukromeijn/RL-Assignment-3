@@ -10,16 +10,25 @@ from policybased import policy_based_learning, PolicyBasedAgent
 from helper import tf_control_memorygrowth, LearningCurvePlot, make_results_dir, smooth
 
 # Some preparation
-results_dir = make_results_dir('results')
+results_dir = make_results_dir('experiments-2-5')
 log_file = open(results_dir + "/experiment.log","w")
 sys.stdout = log_file
 
+# class mock_logfile:
+
+#     def flush():
+#         pass
+
+#     def close():
+#         pass
+
+# log_file = mock_logfile
+
 # (DEFAULT) HYPERPARAMETERS
 # Experimental
-n_repetitions = 1 # ?
-budget = 100
-n_episodes = 5 
-smoothing = 15 
+budget = 1000
+n_episodes = 1  
+smoothing = 15
 # Environment
 rows = 7
 columns = 7
@@ -33,52 +42,202 @@ n_actions = 3
 learning_rate = 0.005
 gamma = 0.95
 eta = 1
-n_step = max_steps + 1 
-baseline_subraction = False
+n_step = 10000000
+baseline_subtraction = False
 
-def average_over_repetitions(n_repetitions, env, agent, budget, n_episodes):
-    rewards, actor_history, critic_history = [], [], []
-    for rep in range(n_repetitions):
-        print("Repetition", rep)
-        tf.keras.backend.clear_session() # Prevent RAM overflow
-        r, actor, critic = policy_based_learning(env, agent, budget, n_episodes)
-        rewards.append(r) 
-        actor_history.append(actor)
-        critic_history.append(critic)
-        log_file.flush()
-    mean_r, std_r = np.mean(rewards, axis=0), np.std(rewards, axis=0)
-    mean_act, std_act = np.mean(actor_history, axis=0), np.std(actor_history, axis=0)
-    mean_crit, std_crit = np.mean(critic_history, axis=0), np.std(critic_history, axis=0)
+def run_experiment(env, agent, budget, n_episodes, smoothing, model_save=None):
+    tf.keras.backend.clear_session() # Prevent RAM overflow
+    rewards, actor_history, critic_history = policy_based_learning(env, agent, budget, n_episodes, model_save)
+    log_file.flush()
+    mean_r, std_r = np.mean(rewards, axis=1), np.std(rewards, axis=1)
+    mean_act, std_act = np.mean(actor_history, axis=1), np.std(actor_history, axis=1)
+    mean_crit, std_crit = np.mean(critic_history, axis=1), np.std(critic_history, axis=1)
     output = [mean_r, std_r, mean_act, std_act, mean_crit, std_crit]
     output = [smooth(array, smoothing, 1) for array in output]
     return output
 
 # ALL EXPERIMENTS
-def exp_learning_rate():
-    exp_name = 'Learning rates'
+def exp_reinforce_hyperparameters():
+    
+    exp_name = 'REINFORCE'
     print("Running experiment:", exp_name)
-    env = Catch(rows=rows, columns=columns, speed=speed, max_steps=max_steps,
-                max_misses=max_misses, observation_type=observation_type, seed=seed)
+    
     fig_r = LearningCurvePlot(xlabel='Epoch')
     fig_a = LearningCurvePlot(xlabel='Epoch', ylabel='Loss')
     fig_c = LearningCurvePlot(xlabel='Epoch', ylabel='Loss')
-    for learning_rate in [0.001, 0.01, 0.1]:
-        print(learning_rate)
+
+    env = Catch(rows=rows, columns=columns, speed=speed, max_steps=max_steps,
+                max_misses=max_misses, observation_type=observation_type, seed=seed)
+    
+    for learning_rate in [0.005, 0.01, 0.05]:
+      for eta in [0, 0.1, 0.2]:
+        print(learning_rate, eta)
         log_file.flush()
         t0 = time.time()
         s = env.reset() 
-        agent = PolicyBasedAgent(s.shape, n_actions, learning_rate, gamma, eta, n_step, baseline_subtraction=True)
-        curves = average_over_repetitions(n_repetitions, env, agent, budget, n_episodes)
-        fig_r.add_curve(curves[0], var=curves[1], label='α=' + str(learning_rate))
-        fig_a.add_curve(curves[2], var=curves[3], label='α=' + str(learning_rate))
-        fig_c.add_curve(curves[4], var=curves[5], label='α=' + str(learning_rate))
+        agent = PolicyBasedAgent(s.shape, n_actions, learning_rate, gamma, eta, n_step, baseline_subtraction)
+        try:
+            curves = run_experiment(env, agent, budget, n_episodes, smoothing)
+        except:
+            print("An error occurred.")
+            continue
+        fig_r.add_curve(curves[0], var=curves[1], label='α='+ str(learning_rate)+'; η='+str(eta))
+        fig_a.add_curve(curves[2], var=curves[3], label='α='+ str(learning_rate)+'; η='+str(eta))
+        fig_c.add_curve(curves[4], var=curves[5], label='α='+ str(learning_rate)+'; η='+str(eta))
+        fig_r.save(exp_name + ' (rewards).png', results_dir)
+        fig_a.save(exp_name + ' (actor).png', results_dir)
+        fig_c.save(exp_name + ' (critic).png', results_dir)
         print(time.time()-t0, "seconds passed.")
-    fig_r.save(exp_name + ' (rewards).png', results_dir)
-    fig_a.save(exp_name + ' (actor).png', results_dir)
-    fig_c.save(exp_name + ' (critic).png', results_dir)
+
+    return 
+
+def exp_baselinesub_hyperparameters():
+    
+    baseline_subtraction = True
+    exp_name = 'Baseline subtraction'
+    print("Running experiment:", exp_name)
+    
+    fig_r = LearningCurvePlot(xlabel='Epoch')
+    fig_a = LearningCurvePlot(xlabel='Epoch', ylabel='Loss')
+    fig_c = LearningCurvePlot(xlabel='Epoch', ylabel='Loss')
+
+    env = Catch(rows=rows, columns=columns, speed=speed, max_steps=max_steps,
+                max_misses=max_misses, observation_type=observation_type, seed=seed)
+    
+    for learning_rate in [0.005, 0.01, 0.05]:
+      for eta in [0, 0.1, 0.2]:
+        print(learning_rate, eta)
+        log_file.flush()
+        t0 = time.time()
+        s = env.reset() 
+        agent = PolicyBasedAgent(s.shape, n_actions, learning_rate, gamma, eta, n_step, baseline_subtraction)
+        try:
+            curves = run_experiment(env, agent, budget, n_episodes, smoothing)
+        except:
+            print("An error occurred.")
+            continue
+        fig_r.add_curve(curves[0], var=curves[1], label='α='+ str(learning_rate)+'; η='+str(eta))
+        fig_a.add_curve(curves[2], var=curves[3], label='α='+ str(learning_rate)+'; η='+str(eta))
+        fig_c.add_curve(curves[4], var=curves[5], label='α='+ str(learning_rate)+'; η='+str(eta))
+        fig_r.save(exp_name + ' (rewards).png', results_dir)
+        fig_a.save(exp_name + ' (actor).png', results_dir)
+        fig_c.save(exp_name + ' (critic).png', results_dir)
+        print(time.time()-t0, "seconds passed.")
+
+    return 
+
+def exp_bootstrap1_hyperparameters():
+    
+    n_step = 1
+    exp_name = 'Bootstrapping n_step=1'
+    print("Running experiment:", exp_name)
+    
+    fig_r = LearningCurvePlot(xlabel='Epoch')
+    fig_a = LearningCurvePlot(xlabel='Epoch', ylabel='Loss')
+    fig_c = LearningCurvePlot(xlabel='Epoch', ylabel='Loss')
+
+    env = Catch(rows=rows, columns=columns, speed=speed, max_steps=max_steps,
+                max_misses=max_misses, observation_type=observation_type, seed=seed)
+    
+    for learning_rate in [0.005, 0.01, 0.05]:
+      for eta in [0, 0.1, 0.2]:
+        print(learning_rate, eta)
+        log_file.flush()
+        t0 = time.time()
+        s = env.reset() 
+        agent = PolicyBasedAgent(s.shape, n_actions, learning_rate, gamma, eta, n_step, baseline_subtraction)
+        try:
+            curves = run_experiment(env, agent, budget, n_episodes, smoothing)
+        except:
+            print("An error occurred.")
+            continue
+        fig_r.add_curve(curves[0], var=curves[1], label='α='+ str(learning_rate)+'; η='+str(eta))
+        fig_a.add_curve(curves[2], var=curves[3], label='α='+ str(learning_rate)+'; η='+str(eta))
+        fig_c.add_curve(curves[4], var=curves[5], label='α='+ str(learning_rate)+'; η='+str(eta))
+        fig_r.save(exp_name + ' (rewards).png', results_dir)
+        fig_a.save(exp_name + ' (actor).png', results_dir)
+        fig_c.save(exp_name + ' (critic).png', results_dir)
+        print(time.time()-t0, "seconds passed.")
+
+    return 
+
+def exp_bootstrap5_hyperparameters():
+    
+    n_step = 5
+    exp_name = 'Bootstrapping n_step=5'
+    print("Running experiment:", exp_name)
+    
+    fig_r = LearningCurvePlot(xlabel='Epoch')
+    fig_a = LearningCurvePlot(xlabel='Epoch', ylabel='Loss')
+    fig_c = LearningCurvePlot(xlabel='Epoch', ylabel='Loss')
+
+    env = Catch(rows=rows, columns=columns, speed=speed, max_steps=max_steps,
+                max_misses=max_misses, observation_type=observation_type, seed=seed)
+    
+    for learning_rate in [0.005, 0.01, 0.05]:
+      for eta in [0, 0.1, 0.2]:
+        print(learning_rate, eta)
+        log_file.flush()
+        t0 = time.time()
+        s = env.reset() 
+        agent = PolicyBasedAgent(s.shape, n_actions, learning_rate, gamma, eta, n_step, baseline_subtraction)
+        try:
+            curves = run_experiment(env, agent, budget, n_episodes, smoothing)
+        except:
+            print("An error occurred.")
+            continue
+        fig_r.add_curve(curves[0], var=curves[1], label='α='+ str(learning_rate)+'; η='+str(eta))
+        fig_a.add_curve(curves[2], var=curves[3], label='α='+ str(learning_rate)+'; η='+str(eta))
+        fig_c.add_curve(curves[4], var=curves[5], label='α='+ str(learning_rate)+'; η='+str(eta))
+        fig_r.save(exp_name + ' (rewards).png', results_dir)
+        fig_a.save(exp_name + ' (actor).png', results_dir)
+        fig_c.save(exp_name + ' (critic).png', results_dir)
+        print(time.time()-t0, "seconds passed.")
+
+    return 
+
+def exp_both_hyperparameters():
+    
+    n_step = 5
+    baseline_subtraction = True
+    exp_name = 'Both'
+    print("Running experiment:", exp_name)
+    
+    fig_r = LearningCurvePlot(xlabel='Epoch')
+    fig_a = LearningCurvePlot(xlabel='Epoch', ylabel='Loss')
+    fig_c = LearningCurvePlot(xlabel='Epoch', ylabel='Loss')
+
+    env = Catch(rows=rows, columns=columns, speed=speed, max_steps=max_steps,
+                max_misses=max_misses, observation_type=observation_type, seed=seed)
+    
+    for learning_rate in [0.005, 0.01, 0.05]:
+      for eta in [0, 0.1, 0.2]:
+        print(learning_rate, eta)
+        log_file.flush()
+        t0 = time.time()
+        s = env.reset() 
+        agent = PolicyBasedAgent(s.shape, n_actions, learning_rate, gamma, eta, n_step, baseline_subtraction)
+        try:
+            curves = run_experiment(env, agent, budget, n_episodes, smoothing)
+        except:
+            print("An error occurred.")
+            continue
+        fig_r.add_curve(curves[0], var=curves[1], label='α='+ str(learning_rate)+'; η='+str(eta))
+        fig_a.add_curve(curves[2], var=curves[3], label='α='+ str(learning_rate)+'; η='+str(eta))
+        fig_c.add_curve(curves[4], var=curves[5], label='α='+ str(learning_rate)+'; η='+str(eta))
+        fig_r.save(exp_name + ' (rewards).png', results_dir)
+        fig_a.save(exp_name + ' (actor).png', results_dir)
+        fig_c.save(exp_name + ' (critic).png', results_dir)
+        print(time.time()-t0, "seconds passed.")
+
+    return 
 
 # A dictionary mapping to all experiments
-experiments = {'1':exp_learning_rate}
+experiments = {'1':exp_reinforce_hyperparameters, 
+               '2':exp_baselinesub_hyperparameters, 
+               '3':exp_bootstrap1_hyperparameters,
+               '4':exp_bootstrap5_hyperparameters,
+               '5':exp_both_hyperparameters}
 
 # Calling the experiments as specified by user
 if len(sys.argv) < 2:
