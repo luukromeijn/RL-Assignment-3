@@ -1,0 +1,20 @@
+Starting experiment 1
+Running experiment: Hyperparameter search
+0.005 0
+7257.9197907447815 seconds passed.
+0.005 0.1
+7754.526561498642 seconds passed.
+0.005 0.2
+7392.547025442123 seconds passed.
+0.01 0
+7719.413902521133 seconds passed.
+0.01 0.1
+7360.423015832901 seconds passed.
+0.01 0.2
+6554.207448482513 seconds passed.
+0.05 0
+7714.269872903824 seconds passed.
+0.05 0.1
+6457.7162890434265 seconds passed.
+0.05 0.2
+3204.134128808975 seconds passed.

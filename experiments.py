@@ -10,7 +10,7 @@ from policybased import policy_based_learning, PolicyBasedAgent
 from helper import tf_control_memorygrowth, LearningCurvePlot, make_results_dir, smooth
 
 # Some preparation
-results_dir = make_results_dir('experiments-2-5')
+results_dir = make_results_dir('experiments-3-5')
 log_file = open(results_dir + "/experiment.log","w")
 sys.stdout = log_file
 
@@ -57,114 +57,11 @@ def run_experiment(env, agent, budget, n_episodes, smoothing, model_save=None):
     return output
 
 # ALL EXPERIMENTS
-def exp_reinforce_hyperparameters():
-    
-    exp_name = 'REINFORCE'
-    print("Running experiment:", exp_name)
-    
-    fig_r = LearningCurvePlot(xlabel='Epoch')
-    fig_a = LearningCurvePlot(xlabel='Epoch', ylabel='Loss')
-    fig_c = LearningCurvePlot(xlabel='Epoch', ylabel='Loss')
-
-    env = Catch(rows=rows, columns=columns, speed=speed, max_steps=max_steps,
-                max_misses=max_misses, observation_type=observation_type, seed=seed)
-    
-    for learning_rate in [0.005, 0.01, 0.05]:
-      for eta in [0, 0.1, 0.2]:
-        print(learning_rate, eta)
-        log_file.flush()
-        t0 = time.time()
-        s = env.reset() 
-        agent = PolicyBasedAgent(s.shape, n_actions, learning_rate, gamma, eta, n_step, baseline_subtraction)
-        try:
-            curves = run_experiment(env, agent, budget, n_episodes, smoothing)
-        except:
-            print("An error occurred.")
-            continue
-        fig_r.add_curve(curves[0], var=curves[1], label='α='+ str(learning_rate)+'; η='+str(eta))
-        fig_a.add_curve(curves[2], var=curves[3], label='α='+ str(learning_rate)+'; η='+str(eta))
-        fig_c.add_curve(curves[4], var=curves[5], label='α='+ str(learning_rate)+'; η='+str(eta))
-        fig_r.save(exp_name + ' (rewards).png', results_dir)
-        fig_a.save(exp_name + ' (actor).png', results_dir)
-        fig_c.save(exp_name + ' (critic).png', results_dir)
-        print(time.time()-t0, "seconds passed.")
-
-    return 
-
-def exp_baselinesub_hyperparameters():
+def exp_hyperparameter_search():
     
     baseline_subtraction = True
-    exp_name = 'Baseline subtraction'
-    print("Running experiment:", exp_name)
-    
-    fig_r = LearningCurvePlot(xlabel='Epoch')
-    fig_a = LearningCurvePlot(xlabel='Epoch', ylabel='Loss')
-    fig_c = LearningCurvePlot(xlabel='Epoch', ylabel='Loss')
-
-    env = Catch(rows=rows, columns=columns, speed=speed, max_steps=max_steps,
-                max_misses=max_misses, observation_type=observation_type, seed=seed)
-    
-    for learning_rate in [0.005, 0.01, 0.05]:
-      for eta in [0, 0.1, 0.2]:
-        print(learning_rate, eta)
-        log_file.flush()
-        t0 = time.time()
-        s = env.reset() 
-        agent = PolicyBasedAgent(s.shape, n_actions, learning_rate, gamma, eta, n_step, baseline_subtraction)
-        try:
-            curves = run_experiment(env, agent, budget, n_episodes, smoothing)
-        except:
-            print("An error occurred.")
-            continue
-        fig_r.add_curve(curves[0], var=curves[1], label='α='+ str(learning_rate)+'; η='+str(eta))
-        fig_a.add_curve(curves[2], var=curves[3], label='α='+ str(learning_rate)+'; η='+str(eta))
-        fig_c.add_curve(curves[4], var=curves[5], label='α='+ str(learning_rate)+'; η='+str(eta))
-        fig_r.save(exp_name + ' (rewards).png', results_dir)
-        fig_a.save(exp_name + ' (actor).png', results_dir)
-        fig_c.save(exp_name + ' (critic).png', results_dir)
-        print(time.time()-t0, "seconds passed.")
-
-    return 
-
-def exp_bootstrap1_hyperparameters():
-    
-    n_step = 1
-    exp_name = 'Bootstrapping n_step=1'
-    print("Running experiment:", exp_name)
-    
-    fig_r = LearningCurvePlot(xlabel='Epoch')
-    fig_a = LearningCurvePlot(xlabel='Epoch', ylabel='Loss')
-    fig_c = LearningCurvePlot(xlabel='Epoch', ylabel='Loss')
-
-    env = Catch(rows=rows, columns=columns, speed=speed, max_steps=max_steps,
-                max_misses=max_misses, observation_type=observation_type, seed=seed)
-    
-    for learning_rate in [0.005, 0.01, 0.05]:
-      for eta in [0, 0.1, 0.2]:
-        print(learning_rate, eta)
-        log_file.flush()
-        t0 = time.time()
-        s = env.reset() 
-        agent = PolicyBasedAgent(s.shape, n_actions, learning_rate, gamma, eta, n_step, baseline_subtraction)
-        try:
-            curves = run_experiment(env, agent, budget, n_episodes, smoothing)
-        except:
-            print("An error occurred.")
-            continue
-        fig_r.add_curve(curves[0], var=curves[1], label='α='+ str(learning_rate)+'; η='+str(eta))
-        fig_a.add_curve(curves[2], var=curves[3], label='α='+ str(learning_rate)+'; η='+str(eta))
-        fig_c.add_curve(curves[4], var=curves[5], label='α='+ str(learning_rate)+'; η='+str(eta))
-        fig_r.save(exp_name + ' (rewards).png', results_dir)
-        fig_a.save(exp_name + ' (actor).png', results_dir)
-        fig_c.save(exp_name + ' (critic).png', results_dir)
-        print(time.time()-t0, "seconds passed.")
-
-    return 
-
-def exp_bootstrap5_hyperparameters():
-    
     n_step = 5
-    exp_name = 'Bootstrapping n_step=5'
+    exp_name = 'Hyperparameter search'
     print("Running experiment:", exp_name)
     
     fig_r = LearningCurvePlot(xlabel='Epoch')
@@ -196,12 +93,20 @@ def exp_bootstrap5_hyperparameters():
 
     return 
 
-def exp_both_hyperparameters():
+def exp_comparison():
     
-    n_step = 5
-    baseline_subtraction = True
-    exp_name = 'Both'
+    exp_name = 'Comparison'
     print("Running experiment:", exp_name)
+    
+    settings = {'REINFORCE': (10000000, False),
+                'Baseline sub.': (10000000, True),
+                'Bootstrap (n=1)': (1, False),
+                'Bootstrap (n=5)': (5, False),
+                'Base + boot (n=5)': (5, True)}
+    
+    n_episodes = 3
+    learning_rate = 0.01
+    eta = 0.1
     
     fig_r = LearningCurvePlot(xlabel='Epoch')
     fig_a = LearningCurvePlot(xlabel='Epoch', ylabel='Loss')
@@ -210,9 +115,9 @@ def exp_both_hyperparameters():
     env = Catch(rows=rows, columns=columns, speed=speed, max_steps=max_steps,
                 max_misses=max_misses, observation_type=observation_type, seed=seed)
     
-    for learning_rate in [0.005, 0.01, 0.05]:
-      for eta in [0, 0.1, 0.2]:
-        print(learning_rate, eta)
+    for setting in settings:
+        print(setting)
+        n_step, baseline_subtraction = settings[setting]
         log_file.flush()
         t0 = time.time()
         s = env.reset() 
@@ -222,22 +127,20 @@ def exp_both_hyperparameters():
         except:
             print("An error occurred.")
             continue
-        fig_r.add_curve(curves[0], var=curves[1], label='α='+ str(learning_rate)+'; η='+str(eta))
-        fig_a.add_curve(curves[2], var=curves[3], label='α='+ str(learning_rate)+'; η='+str(eta))
-        fig_c.add_curve(curves[4], var=curves[5], label='α='+ str(learning_rate)+'; η='+str(eta))
+        fig_r.add_curve(curves[0], var=curves[1], label=setting)
+        fig_a.add_curve(curves[2], var=curves[3], label=setting)
+        fig_c.add_curve(curves[4], var=curves[5], label=setting)
         fig_r.save(exp_name + ' (rewards).png', results_dir)
         fig_a.save(exp_name + ' (actor).png', results_dir)
         fig_c.save(exp_name + ' (critic).png', results_dir)
         print(time.time()-t0, "seconds passed.")
 
     return 
+
 
 # A dictionary mapping to all experiments
-experiments = {'1':exp_reinforce_hyperparameters, 
-               '2':exp_baselinesub_hyperparameters, 
-               '3':exp_bootstrap1_hyperparameters,
-               '4':exp_bootstrap5_hyperparameters,
-               '5':exp_both_hyperparameters}
+experiments = {'1':exp_hyperparameter_search, 
+               '2':exp_comparison}
 
 # Calling the experiments as specified by user
 if len(sys.argv) < 2:
