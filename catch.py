@@ -10,7 +10,7 @@ Extended from Catch environment in Behavioural Suite: https://arxiv.org/pdf/1908
 """
 
 import matplotlib
-matplotlib.use('Agg') #'Qt5Agg') # 'TkAgg'
+matplotlib.use('Qt5Agg') # 'Agg' 'TkAgg'
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import numpy as np
@@ -283,7 +283,7 @@ def test():
                 print("Switching to continuous random action selection.")
                 continuous_execution = True
                 a = np.random.randint(3) # sample random action    
-        s_next,r,done = env.step(a) # execute action in the environment
+        s_next,r,done,_ = env.step(a) # execute action in the environment
         if print_details:  
             print("State {}, Action {}, Reward {}, Next state {}, Terminal {}".format(s,a,r,s_next,done))
 
