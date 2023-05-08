@@ -1,3 +1,5 @@
+'''Visualize a policy from a saved Actor model.'''
+
 from policybased import PolicyBasedAgent
 from catch import Catch
 import tensorflow as tf

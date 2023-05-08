@@ -24,9 +24,9 @@ def tf_control_memorygrowth():
           # Memory growth must be set before GPUs have been initialized
           print(e)
 
-def make_results_dir(name):
-    Path('results/' + name).mkdir(parents=True, exist_ok=True)
-    return 'results/' + name
+def make_results_dir(name, parent='results'):
+    Path(parent + '/' + name).mkdir(parents=True, exist_ok=True)
+    return parent + '/' + name
 
 class LearningCurvePlot:
 

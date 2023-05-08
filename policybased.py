@@ -154,9 +154,9 @@ if __name__ == '__main__':
     budget = 1000
     n_episodes = 5
     n_actions = 3
-    learning_rate = 0.005
+    learning_rate = 0.05
     gamma = 0.95
-    eta = 1
+    eta = 0
     n_step = 10000000 # default = no bootstrapping
     baseline_subtraction = False
 
